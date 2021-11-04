@@ -48,7 +48,7 @@ static int get_token()
         Identifier_string = LastChar;
 
         while (isalnum(LastChar = fgetc(file)))
-                Identifier_string += LastChar;
+            Identifier_string += LastChar;
 
         if (Identifier_string == "def") {
             //std::cout<<"string: "<<Identifier_string<<": "<<"DEF_TOKEN"<<"\n"; 
@@ -213,10 +213,10 @@ llvm::Value *FunctionCallAST::Codegen()
     //最后创建 LLVM调用指令
     return Builder.CreateCall(CalleeF, ArgsV, "calltemp");
 }
-//函数声明的代码生成函数a
+//函数声明的代码生成函数
 llvm::Function *FunctionDeclAST::Codegen()
 {
-	//std::cout<<"Inside FunctionDeclAST \n";
+    //std::cout<<"Inside FunctionDeclAST \n";
     vector<llvm::Type*> Integers(Arguments.size(), llvm::Type::getInt32Ty(TheContext));
     llvm::FunctionType *FT = llvm::FunctionType::get(llvm::Type::getInt32Ty(TheContext), Integers, false);
     llvm::Function *F = llvm::Function::Create(FT, llvm::Function::ExternalLinkage, Func_Name, Module_Ob);
@@ -240,294 +240,294 @@ llvm::Function *FunctionDeclAST::Codegen()
     }
     return F;
 }
+//函数定义的代码生成函数
 llvm::Function *FunctionDefnAST::Codegen()
 {
 	//cout<<"Inside Function Definition AST Codegen : \n";
-        Named_Values.clear();
-
-        llvm::Function *TheFunction = Func_Decl->Codegen();
+    Named_Values.clear();
+    llvm::Function *TheFunction = Func_Decl->Codegen();
 	//llvm::errs()<<"The Function: \n"<<*TheFunction<<"\n";
-        if(TheFunction == 0) {
-		cout<<"TheFunction == 0.\n";
-                return 0;
-	}
-        llvm::BasicBlock *BB = llvm::BasicBlock::Create(TheContext, "entry", TheFunction);
-        Builder.SetInsertPoint(BB);
-
-        if(llvm::Value *RetVal = Body->Codegen())
-        {
-                Builder.CreateRet(RetVal);
-                verifyFunction(*TheFunction);
-                //Global_FP->run(*TheFunction);
-                return TheFunction;
-        }
-
-        TheFunction->eraseFromParent();
+    if(TheFunction == 0) {
+        //cout<<"TheFunction == 0.\n";
         return 0;
+	}
+    llvm::BasicBlock *BB = llvm::BasicBlock::Create(TheContext, "entry", TheFunction);
+    Builder.SetInsertPoint(BB);
+
+    if(llvm::Value *RetVal = Body->Codegen())
+    {
+        Builder.CreateRet(RetVal);
+        verifyFunction(*TheFunction);
+        //Global_FP->run(*TheFunction);
+        return TheFunction;
+    }
+
+    TheFunction->eraseFromParent();
+    return 0;
 }
-/*-----------
-* Parser
------------*/
-//store in the Current token 
+
+//当前token（静态全局变量） 
 static int Current_token;
-//get the next token from lexer
+//获取下一个token
 static int next_token()
 {
-        Current_token = get_token();
-        return Current_token;
+    Current_token = get_token();
+    return Current_token;
 }
-
+//括号解析函数
 static BaseAST* paran_parser();
 static BaseAST* Base_Parser();
+//二元运算符解析函数
 static BaseAST* binary_op_parser(int, BaseAST *);
-
+//数值表达式解析函数
 static BaseAST *numeric_parser()
 {
-        BaseAST *Result = new NumericAST(Numeric_Val);
-        next_token();
-        return Result;
+    BaseAST *Result = new NumericAST(Numeric_Val);
+    next_token();
+    return Result;
 }
+//表达式解析函数
 static BaseAST* expression_parser()
 {
 	//cout<<"Inside expression_parser()\n";
-        BaseAST *LHS = Base_Parser();
-        if(!LHS) {
-		cout<<"!LHS\n";
-                return 0;
+    BaseAST *LHS = Base_Parser();
+    if(!LHS) {
+        //cout<<"!LHS\n";
+        return 0;
 	}
-        return binary_op_parser(0, LHS);
+    return binary_op_parser(0, LHS);
 }
+//标识符解析函数
 static BaseAST* identifier_parser()
 {
-        //cout<<"Inside identifier_parser()\n";
-        std::string IdName = Identifier_string;
-        next_token();
-        if(Current_token != '(')
-                return new VariableAST(IdName);
+    //cout<<"Inside identifier_parser()\n";
+    std::string IdName = Identifier_string;
+    next_token();
+    if(Current_token != '(')
+        return new VariableAST(IdName);
 
-        next_token();
+    next_token();
 
-        std::vector<BaseAST*> Args;
-        if(Current_token != '(')
+    std::vector<BaseAST*> Args;
+    if(Current_token != '(')
+    {
+        while(1)
         {
-                while(1)
-                {
-                        BaseAST *Arg = expression_parser();
-                        if(!Arg) return 0;
-                        Args.push_back(Arg);
+            BaseAST *Arg = expression_parser();
+            if(!Arg) return 0;
+            Args.push_back(Arg);
 
-                        if(Current_token == ')') break;
+            if(Current_token == ')') break;
 
-                        if(Current_token != ',')
-                                return 0;
-                        
-                        next_token();
-                }
+            if(Current_token != ',')
+                    return 0;
+            
+            next_token();
         }
-        next_token();
+    }
+    next_token();
 
-        return new FunctionCallAST(IdName, Args);
+    return new FunctionCallAST(IdName, Args);
 }
-//return different parser for current token
+//泛型函数，由当前token确定调用的解析函数
 static BaseAST* Base_Parser()
 {
 	//cout<<"Inside Base_Parser()\n";
 	//cout<<"Current_token:"<<Current_token<<"\n";
-        switch(Current_token)
-        {
-                case IDENTIFIER_TOKEN : return identifier_parser();
-                case NUMERIC_TOKEN : return numeric_parser();
-                case '(' : return paran_parser();
-		default: return 0;
-        }
+    switch(Current_token)
+    {
+        case IDENTIFIER_TOKEN : return identifier_parser();
+        case NUMERIC_TOKEN : return numeric_parser();
+        case '(' : return paran_parser();
+        default: return 0;
+    }
 }
-
+//函数声明解析函数
 static FunctionDeclAST *func_decl_parser()
 {
 	//cout<<"Inside func_decl_parser():\n";
-        if(Current_token != IDENTIFIER_TOKEN)
-                return 0;
-        
-        std::string FnName = Identifier_string;
+    if(Current_token != IDENTIFIER_TOKEN)
+        return 0;
+    
+    std::string FnName = Identifier_string;
 	//cout<<"FnName: "<<FnName<<"\n";
-        next_token();
+    next_token();
 
-        if(Current_token != '(')
-                return 0;
+    if(Current_token != '(')
+        return 0;
 
-        std::vector<std::string> Function_Argument_Names;
+    std::vector<std::string> Function_Argument_Names;
 
-        while(next_token() == IDENTIFIER_TOKEN)
-        {
-                Function_Argument_Names.push_back(Identifier_string);
-		//cout<<"Identifier_string: "<<Identifier_string<<"\n";
-        }
+    while(next_token() == IDENTIFIER_TOKEN)
+    {
+        Function_Argument_Names.push_back(Identifier_string);
+        //cout<<"Identifier_string: "<<Identifier_string<<"\n";
+    }
 
-        if(Current_token != ')')
-                return 0;
-        next_token();
-	//cout<<"create FunctionDeclAST.\n";
-        return new FunctionDeclAST(FnName, Function_Argument_Names);
+    if(Current_token != ')')
+        return 0;
+    next_token();
+    //cout<<"create FunctionDeclAST.\n";
+    return new FunctionDeclAST(FnName, Function_Argument_Names);
 }
+//函数定义解析函数
 static FunctionDefnAST *func_defn_parser()
 {
 	//cout<<"Inside function func_defn_parser():\n";
-        next_token();
-        FunctionDeclAST *Decl = func_decl_parser();
-        if(Decl == 0)
-                return 0;
-        
-        if(BaseAST *Body = expression_parser())
-        {
-		//cout<<"new FunctionDefnAST: \n";
-                return new FunctionDefnAST(Decl, Body);
-        }
+    next_token();
+    FunctionDeclAST *Decl = func_decl_parser();
+    if(Decl == 0)
         return 0;
+    
+    if(BaseAST *Body = expression_parser())
+    {
+        //cout<<"new FunctionDefnAST: \n";
+        return new FunctionDefnAST(Decl, Body);
+    }
+    return 0;
 }
-//Set the priority of the binary operator:
+//设置二元操作符优先级
 static std::map<char, int> Operator_Precedence;
 static void init_precedence()
 {
-        Operator_Precedence['-'] = 1;
-        Operator_Precedence['+'] = 2;
-        Operator_Precedence['/'] = 3;
-        Operator_Precedence['*'] = 4;
+    Operator_Precedence['-'] = 1;
+    Operator_Precedence['+'] = 2;
+    Operator_Precedence['/'] = 3;
+    Operator_Precedence['*'] = 4;
 }
+//返回已定义的二元操作符优先级
 static int getBinOpPrecedence()
 {
-        if (!isascii(Current_token))
-                return -1;
-        int TokPrec = Operator_Precedence[Current_token];
-        if(TokPrec <= 0) return -1;
+    if (!isascii(Current_token))
+        return -1;
+    int TokPrec = Operator_Precedence[Current_token];
+    if(TokPrec <= 0) return -1;
 
-        return TokPrec;
+    return TokPrec;
 }
+//二元操作符的解析函数
 static BaseAST* binary_op_parser(int Old_Prec, BaseAST *LHS)
 {
 	//cout<<"Inside binary_op_parser():\n";
-        while(1)
+    while(1)
+    {
+        //操作符优先级
+        int Operator_Prec = getBinOpPrecedence();
+        //cout<<"Operator_Prec :"<<Operator_Prec<<"\n";
+        if(Operator_Prec < Old_Prec)
+            return LHS;
+        int BinOp = Current_token;
+        //cout<<"BinOp : "<<BinOp<<"\n";
+        next_token();
+
+        BaseAST* RHS = Base_Parser();
+        if(!RHS) 
+            return 0;
+
+        int Next_Prec = getBinOpPrecedence();
+        //cout<<"Next_Prec :"<<Next_Prec<<"\n";
+        if(Operator_Prec < Next_Prec)
         {
-		// the binary op is not the prefix expression, why it get the op
-		//directly at the begining.
-                int Operator_Prec = getBinOpPrecedence();
-		//cout<<"Operator_Prec :"<<Operator_Prec<<"\n";
-                if(Operator_Prec < Old_Prec)
-                        return LHS;
-                int BinOp = Current_token;
-		//cout<<"BinOp : "<<BinOp<<"\n";
-                next_token();
-
-                BaseAST* RHS = Base_Parser();
-                if(!RHS) 
-                        return 0;
-
-                int Next_Prec = getBinOpPrecedence();
-		//cout<<"Next_Prec :"<<Next_Prec<<"\n";
-                if(Operator_Prec < Next_Prec)
-                {
-                        RHS = binary_op_parser(Operator_Prec + 1, RHS);
-                        if(RHS == 0)
-                                return 0;
-                }
-                LHS = new BinaryAST(std::to_string(BinOp), LHS, RHS);
+            RHS = binary_op_parser(Operator_Prec + 1, RHS);
+            if(RHS == 0)
+                return 0;
         }
+        LHS = new BinaryAST(std::to_string(BinOp), LHS, RHS);
+    }
 	//cout<<"End of binary_op_parser.\n";
 }
 static BaseAST* paran_parser()
 {
-        next_token();
-        BaseAST* V = expression_parser();
-        if(!V)
-                return 0;
-        
-        if(Current_token != ')')
-                return 0;
-        return V;
+    next_token();
+    BaseAST* V = expression_parser();
+    if(!V)
+        return 0;
+    
+    if(Current_token != ')')
+        return 0;
+    return V;
 }
 static void HandleDefn()
 {
-        if(FunctionDefnAST *F = func_defn_parser())
+    if(FunctionDefnAST *F = func_defn_parser())
+    {
+        if(llvm::Function *LF = F -> Codegen())
         {
-                if(llvm::Function *LF = F -> Codegen())
-                {
-			
-                }
+    
         }
-        else
-        {
-                next_token();
-        }
+    }
+    else
+    {
+        next_token();
+    }
 }
 static FunctionDefnAST *top_level_parser()
 {
 	//cout<<"Inside top_level_parser()\n";
-        if (BaseAST *E = expression_parser()) {
-                FunctionDeclAST *Func_Decl =
-                        new FunctionDeclAST("", std::vector<std::string>());
-                return new FunctionDefnAST(Func_Decl, E);
-        }
-        return 0;
-
+    if (BaseAST *E = expression_parser()) {
+        FunctionDeclAST *Func_Decl = new FunctionDeclAST("", std::vector<std::string>());
+        return new FunctionDefnAST(Func_Decl, E);
+    }
+    return 0;
 }
 static void HandleTopExpression()
 {
 	//cout<<"Inside HandleTopExpression():\n";
-        if(FunctionDefnAST *F = top_level_parser())
+    if(FunctionDefnAST *F = top_level_parser())
+    {
+        if(llvm::Function *LF = F ->Codegen())
         {
-                if(llvm::Function *LF = F ->Codegen())
-                {
 
-                }
         }
-        else
-        {
-                next_token();
-        }
+    }
+    else
+    {
+        next_token();
+    }
 }
-//Driver function
+//驱动函数
 static void Driver()
 {
 	//cout<<"Inside Driver :\n";
-        while(1)
-        {
-                //printf("Current_token: %c \n", Current_token);
-		//cout<<"Current_token : "<<Current_token<<"\n";
-                switch(Current_token)
-                {       
-                        case EOF_TOKEN: return;
-                        case ';': next_token(); break;
-			//Handle definition
-                        case DEF_TOKEN: {
-				//std::cout<<"HandleDefn: \n";
-				HandleDefn(); 
-				break;
-			}
-			//Handle expression
-                        default: {
-				//std::cout<<"handleTopExpr: \n";
-				HandleTopExpression(); 
-				break;
-			}
-                }
+    while(1)
+    {
+        //printf("Current_token: %c \n", Current_token);
+        //cout<<"Current_token : "<<Current_token<<"\n";
+        switch(Current_token)
+        {       
+            case EOF_TOKEN: return;
+            case ';': next_token(); break;
+            //函数定义处理
+            case DEF_TOKEN: {
+                //std::cout<<"HandleDefn: \n";
+                HandleDefn(); 
+                break;
+            }
+            //表达式处理
+            default: {
+                //std::cout<<"handleTopExpr: \n";
+                HandleTopExpression(); 
+                break;
+            }
         }
+    }
 }
 
 int main(int argc, char *argv[])
 {
-        llvm::LLVMContext &Context = TheContext;
-        init_precedence();
-        file = fopen(argv[1], "r");
-        if(file == 0)
-        {
-             printf("File not found.\n");
-        }
-        next_token();
-        Module_Ob = new llvm::Module(argv[1], Context);
-        //llvm::FunctionPassManager FP(Module_Ob);
-        //Global_FP = &FP;
-        Driver();
-        Module_Ob->dump();
-        //Module_Ob->print(llvm::outs(), nullptr);
-        return 0;
+    llvm::LLVMContext &Context = TheContext;
+    init_precedence();
+    file = fopen(argv[1], "r");
+    if(file == 0)
+    {
+        printf("File not found.\n");
+    }
+    next_token();
+    Module_Ob = new llvm::Module(argv[1], Context);
+    //llvm::FunctionPassManager FP(Module_Ob);
+    //Global_FP = &FP;
+    Driver();
+    Module_Ob->print(llvm::outs(), nullptr);
+    return 0;
 }
 
