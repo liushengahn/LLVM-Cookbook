@@ -217,14 +217,14 @@ llvm::Value *FunctionCallAST::Codegen()
 //函数声明的代码生成函数
 llvm::Function *FunctionDeclAST::Codegen()
 {
-    std::cout<<"Inside FunctionDeclAST \n";
+    //std::cout<<"Inside FunctionDeclAST \n";
     vector<llvm::Type*> Integers(Arguments.size(), llvm::Type::getInt32Ty(TheContext));
     llvm::FunctionType *FT = llvm::FunctionType::get(llvm::Type::getInt32Ty(TheContext), Integers, false);
     llvm::Function *F = llvm::Function::Create(FT, llvm::Function::ExternalLinkage, Func_Name, Module_Ob);
-	std::cout<<"F->getName() : "<<F->getName().str()<<", Func_Name: "<<Func_Name<<"\n";
+	//std::cout<<"F->getName() : "<<F->getName().str()<<", Func_Name: "<<Func_Name<<"\n";
     if(F->getName().str() != Func_Name)
     {
-        std::cout<<"erase from parent.\n";
+        //std::cout<<"erase from parent.\n";
         F -> eraseFromParent();
         F = Module_Ob->getFunction(Func_Name);
 
@@ -244,12 +244,12 @@ llvm::Function *FunctionDeclAST::Codegen()
 //函数定义的代码生成函数
 llvm::Function *FunctionDefnAST::Codegen()
 {
-	cout<<"Inside Function Definition AST Codegen : \n";
+	//cout<<"Inside Function Definition AST Codegen : \n";
     Named_Values.clear();
     llvm::Function *TheFunction = Func_Decl->Codegen();
 	//llvm::errs()<<"The Function: \n"<<*TheFunction<<"\n";
     if(TheFunction == 0) {
-        cout<<"TheFunction == 0.\n";
+        //cout<<"TheFunction == 0.\n";
         return 0;
 	}
     llvm::BasicBlock *BB = llvm::BasicBlock::Create(TheContext, "entry", TheFunction);
