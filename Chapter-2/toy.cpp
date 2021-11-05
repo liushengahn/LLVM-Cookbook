@@ -39,7 +39,7 @@ static int get_token()
 {
 	//定义第一个字符，以防没有输入
     static int LastChar = ' ';
-	//跳过空格
+	//跳过空白字符（比如：空格、制表符(\t)、换行(\n)、回车等(\r））
     while (isspace(LastChar))
         LastChar = fgetc(file);
 	//识别标识符
@@ -52,8 +52,8 @@ static int get_token()
 
         if (Identifier_string == "def") {
             //std::cout<<"string: "<<Identifier_string<<": "<<"DEF_TOKEN"<<"\n"; 
-        return DEF_TOKEN;
-    }
+            return DEF_TOKEN;
+        }
         //std::cout<<"string: "<<Identifier_string<<": "<<"IDENTIFIER_TOKEN"<<"\n";
         return IDENTIFIER_TOKEN;
     }
@@ -83,13 +83,13 @@ static int get_token()
             return get_token();
     }
     if(LastChar == EOF) {
-    //std::cout<<"EOF_TOKEN\n";
+        //std::cout<<"EOF_TOKEN\n";
         return EOF_TOKEN;
     }
     //其他字符，如逗号，括号
     int ThisChar = LastChar;
     LastChar = fgetc(file);
-    //std::cout<<"Other Cases: "<<ThisChar<<": "<<"OTHERS_TYPE"<<"\n";
+    //std::cout<<"Other Cases: "<<(char)ThisChar<<": "<<"OTHERS_TYPE"<<"\n";
     return ThisChar;
 }
 //AST基类
@@ -189,11 +189,12 @@ class FunctionDefnAST
 //函数调用的AST类定义
 class FunctionCallAST : public BaseAST
 {
+    public:
     //调用函数名
     std::string Function_Callee;
     //调用函数所含参数
     std::vector<BaseAST *> Function_Arguments;
-    public:
+
     FunctionCallAST(const std::string &Callee, std::vector<BaseAST*> &args):
         Function_Callee(Callee), Function_Arguments(args){}
     virtual llvm::Value* Codegen();
@@ -216,14 +217,14 @@ llvm::Value *FunctionCallAST::Codegen()
 //函数声明的代码生成函数
 llvm::Function *FunctionDeclAST::Codegen()
 {
-    //std::cout<<"Inside FunctionDeclAST \n";
+    std::cout<<"Inside FunctionDeclAST \n";
     vector<llvm::Type*> Integers(Arguments.size(), llvm::Type::getInt32Ty(TheContext));
     llvm::FunctionType *FT = llvm::FunctionType::get(llvm::Type::getInt32Ty(TheContext), Integers, false);
     llvm::Function *F = llvm::Function::Create(FT, llvm::Function::ExternalLinkage, Func_Name, Module_Ob);
-	//std::cout<<"F->getName() : "<<F->getName().str()<<", Func_Name: "<<Func_Name<<"\n";
+	std::cout<<"F->getName() : "<<F->getName().str()<<", Func_Name: "<<Func_Name<<"\n";
     if(F->getName().str() != Func_Name)
     {
-        //std::cout<<"erase from parent.\n";
+        std::cout<<"erase from parent.\n";
         F -> eraseFromParent();
         F = Module_Ob->getFunction(Func_Name);
 
@@ -243,12 +244,12 @@ llvm::Function *FunctionDeclAST::Codegen()
 //函数定义的代码生成函数
 llvm::Function *FunctionDefnAST::Codegen()
 {
-	//cout<<"Inside Function Definition AST Codegen : \n";
+	cout<<"Inside Function Definition AST Codegen : \n";
     Named_Values.clear();
     llvm::Function *TheFunction = Func_Decl->Codegen();
 	//llvm::errs()<<"The Function: \n"<<*TheFunction<<"\n";
     if(TheFunction == 0) {
-        //cout<<"TheFunction == 0.\n";
+        cout<<"TheFunction == 0.\n";
         return 0;
 	}
     llvm::BasicBlock *BB = llvm::BasicBlock::Create(TheContext, "entry", TheFunction);
@@ -320,7 +321,7 @@ static BaseAST* identifier_parser()
             if(Current_token == ')') break;
 
             if(Current_token != ',')
-                    return 0;
+                return 0;
             
             next_token();
         }
@@ -357,11 +358,25 @@ static FunctionDeclAST *func_decl_parser()
         return 0;
 
     std::vector<std::string> Function_Argument_Names;
-
-    while(next_token() == IDENTIFIER_TOKEN)
+    //原书代码如下，但未处理函数声明参数中，逗号的问题
+    // while(next_token() == IDENTIFIER_TOKEN)
+    // {
+    //     Function_Argument_Names.push_back(Identifier_string);
+    //     //cout<<"Identifier_string: "<<Identifier_string<<"\n";
+    // }
+    //我做出了如下修改：
+    next_token();
+    while( Current_token == IDENTIFIER_TOKEN || Current_token == ',')
     {
-        Function_Argument_Names.push_back(Identifier_string);
-        //cout<<"Identifier_string: "<<Identifier_string<<"\n";
+        if(Current_token == IDENTIFIER_TOKEN){
+            Function_Argument_Names.push_back(Identifier_string);
+            //cout<<"Identifier_string: "<<Identifier_string<<"\n";
+            next_token();
+        }
+        if(Current_token == ','){
+            next_token();
+            continue;
+        }
     }
 
     if(Current_token != ')')
@@ -417,7 +432,7 @@ static BaseAST* binary_op_parser(int Old_Prec, BaseAST *LHS)
         if(Operator_Prec < Old_Prec)
             return LHS;
         int BinOp = Current_token;
-        //cout<<"BinOp : "<<BinOp<<"\n";
+        //cout<<"BinOp : "<<(char)BinOp<<"\n";
         next_token();
 
         BaseAST* RHS = Base_Parser();
@@ -465,7 +480,7 @@ static FunctionDefnAST *top_level_parser()
 {
 	//cout<<"Inside top_level_parser()\n";
     if (BaseAST *E = expression_parser()) {
-        FunctionDeclAST *Func_Decl = new FunctionDeclAST("", std::vector<std::string>());
+        FunctionDeclAST *Func_Decl = new FunctionDeclAST(static_cast<FunctionCallAST*>(E)->Function_Callee, std::vector<std::string>());
         return new FunctionDefnAST(Func_Decl, E);
     }
     return 0;
