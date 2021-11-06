@@ -10,6 +10,9 @@
 #include "llvm/IR/LLVMContext.h"
 #include "llvm/IR/Module.h"
 #include "llvm/IR/Verifier.h"
+#include "llvm/Analysis/Passes.h"
+#include "llvm/Transforms/Scalar.h"
+#include "llvm/IR/LegacyPassManager.h"
 using namespace std;
 
 enum Token_Type {
@@ -32,7 +35,8 @@ static llvm::LLVMContext TheContext;
 static llvm::IRBuilder<> Builder(TheContext);
 //Named_Value 记录当前作用域中的所有已定义值，充当符号表的功能。对于toy来说，也包含函数参数信息
 static std::map<std::string, llvm::Value*> Named_Values;
-static llvm::FunctionPassManager *Global_FP;
+//静态变量管理函数
+static llvm::legacy::FunctionPassManager *Global_FP;
 
 //词法分析函数
 static int get_token()
@@ -261,7 +265,7 @@ llvm::Function *FunctionDefnAST::Codegen()
     {
         Builder.CreateRet(RetVal);
         verifyFunction(*TheFunction);
-        //Global_FP->run(*TheFunction);
+        Global_FP->run(*TheFunction);
         return TheFunction;
     }
 
@@ -541,8 +545,11 @@ int main(int argc, char *argv[])
     }
     next_token();
     Module_Ob = new llvm::Module(argv[1], Context);
-    //llvm::FunctionPassManager FP(Module_Ob);
-    //Global_FP = &FP;
+    //为Module定义一个函数管理器
+    llvm::legacy::FunctionPassManager My_FP(Module_Ob);
+    My_FP.add(llvm::createReassociatePass());
+    My_FP.doInitialization();
+    Global_FP = &My_FP;
     Driver();
     Module_Ob->print(llvm::outs(), nullptr);
     return 0;
