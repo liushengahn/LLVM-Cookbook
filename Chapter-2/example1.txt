@@ -1,2 +1,4 @@
-def foo(x, y)
-x + y * 16
+def foo(x ,y)
+x+y;
+
+foo(5,6);

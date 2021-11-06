@@ -189,12 +189,12 @@ class FunctionDefnAST
 //函数调用的AST类定义
 class FunctionCallAST : public BaseAST
 {
-    public:
+    
     //调用函数名
     std::string Function_Callee;
     //调用函数所含参数
     std::vector<BaseAST *> Function_Arguments;
-
+    public:
     FunctionCallAST(const std::string &Callee, std::vector<BaseAST*> &args):
         Function_Callee(Callee), Function_Arguments(args){}
     virtual llvm::Value* Codegen();
@@ -202,7 +202,9 @@ class FunctionCallAST : public BaseAST
 //函数调用的代码生成函数
 llvm::Value *FunctionCallAST::Codegen()
 {
+    //在之前已声明的函数中查找
     llvm::Function *CalleeF = Module_Ob->getFunction(Function_Callee);
+    //llvm::errs()<<"Function:"<<*CalleeF<<"\n";
     //存储所传递参数的代码生成结果
     vector<llvm::Value*> ArgsV;
     for(unsigned i =0, e = Function_Arguments.size(); i != e; i++)
@@ -310,7 +312,7 @@ static BaseAST* identifier_parser()
     next_token();
 
     std::vector<BaseAST*> Args;
-    if(Current_token != '(')
+    if(Current_token != ')')
     {
         while(1)
         {
@@ -480,7 +482,7 @@ static FunctionDefnAST *top_level_parser()
 {
 	//cout<<"Inside top_level_parser()\n";
     if (BaseAST *E = expression_parser()) {
-        FunctionDeclAST *Func_Decl = new FunctionDeclAST(static_cast<FunctionCallAST*>(E)->Function_Callee, std::vector<std::string>());
+        FunctionDeclAST *Func_Decl = new FunctionDeclAST("", std::vector<std::string>());
         return new FunctionDefnAST(Func_Decl, E);
     }
     return 0;
